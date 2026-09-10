@@ -1,17 +1,4 @@
-"""
-main.py — نقطة البداية الرئيسية لتطبيق WinAdmin
-تطبيق إدارة نظام Windows المتكامل لمسؤولي الأنظمة.
-
-الميزات:
-  - لوحة تحكم مباشرة بمقاييس الموارد
-  - مراقبة تفصيلية للمعالج والذاكرة والتخزين والشبكة
-  - إدارة العمليات (عرض، إيقاف، تصفية)
-  - إدارة الخدمات (تشغيل، إيقاف، تغيير نوع البدء)
-  - فحص الأمان والصحة
-  - إدارة التخزين (مجلدات كبيرة، تنظيف، تطبيقات)
-  - سجلات وتقارير مع تصدير CSV/JSON
-  - إعدادات كاملة (عتبات، بريد، مظهر، أجهزة بعيدة)
-"""
+"""main.py — نقطة البداية الرئيسية لتطبيق WinAdmin."""
 
 import sys
 import os
@@ -20,13 +7,13 @@ import ctypes
 import subprocess
 from datetime import datetime
 
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                              QHBoxLayout, QPushButton, QLabel, QStackedWidget,
-                              QFrame, QSizePolicy, QMessageBox)
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QStackedWidget, QFrame, QSizePolicy, QMessageBox
+)
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QFont
 
-# إضافة مسار المشروع
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.optimized_database import OptimizedDatabaseManager
@@ -41,16 +28,16 @@ from ui.reports_optimized import ReportsWidget
 from ui.commands import CommandsWidget
 from ui.settings import SettingsWidget
 
-# ── إعداد التسجيل ──────────────────────────────────────────
 log_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(log_dir, exist_ok=True)
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.FileHandler(os.path.join(log_dir, f"winadmin_{datetime.now().strftime('%Y%m%d')}.log"),
-                           encoding="utf-8"),
+        logging.FileHandler(
+            os.path.join(log_dir, f"winadmin_{datetime.now().strftime('%Y%m%d')}.log"),
+            encoding="utf-8"
+        ),
         logging.StreamHandler()
     ]
 )
@@ -58,7 +45,7 @@ logger = logging.getLogger("WinAdmin")
 
 
 def is_admin() -> bool:
-    """تحقق مما إذا كان التطبيق يعمل بصلاحيات المدير على ويندوز."""
+    """تحقق من تشغيل التطبيق بصلاحيات المدير."""
     if os.name != "nt":
         return True
     try:
@@ -78,16 +65,11 @@ def relaunch_as_admin() -> bool:
         result = ctypes.windll.shell32.ShellExecuteW(
             None, "runas", sys.executable, command, None, 1
         )
-        if result > 32:
-            return True
-        logger.warning("Failed to relaunch with admin privileges: ShellExecute result=%s", result)
-        return False
+        return result > 32
     except Exception:
         logger.exception("Error while relaunching as admin")
         return False
 
-
-# ── أنماط الواجهة ──────────────────────────────────────────
 
 DARK_STYLE = """QMainWindow { background-color: #1a1a2e; }
 QWidget { background-color: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial; font-size: 12px; }
@@ -102,16 +84,14 @@ QScrollBar::handle:vertical { background: #2a2a4a; border-radius: 4px; min-heigh
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QGroupBox { border: 1px solid #2a2a3e; border-radius: 6px; margin-top: 10px; padding-top: 15px; color: #e0e0e0; }
 QTabWidget::pane { border: 1px solid #2a2a3e; background: #1a1a2e; }
-QTabBar::tab { background: #1e1e32; color: #aaa; padding: 8px 16px; border: 1px solid #2a2a3e; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+QTabBar::tab { background: #1e1e32; color: #aaa; padding: 8px 16px; border: 1px solid #2a2a3e; }
 QTabBar::tab:selected { background: #2a2a4a; color: #fff; }
 QProgressBar { background: #1e1e32; border: 1px solid #2a2a3e; border-radius: 4px; text-align: center; color: white; }
 QProgressBar::chunk { border-radius: 3px; }
-QComboBox { background-color: #1e1e32; color: #e0e0e0; border: 1px solid #2a4a; padding: 5px; border-radius: 3px; }
+QComboBox { background-color: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; border-radius: 3px; }
 QComboBox QAbstractItemView { background: #1e1e32; color: #e0e0e0; selection-background-color: #2a2a4a; }
 QSpinBox { background-color: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; }
 QCheckBox { color: #ccc; spacing: 6px; }
-QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #3a3a5a; border-radius: 3px; background: #1e1e32; }
-QCheckBox::indicator:checked { background: #4CAF50; border-color: #4CAF50; }
 QDateEdit { background: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; }
 QLabel { color: #e0e0e0; }
 QScrollArea { border: none; background: #1a1a2e; }
@@ -158,19 +138,17 @@ class NavButton(QPushButton):
         self._update_style()
 
     def _update_style(self):
+        border = "border-right" if QApplication.instance() and QApplication.instance().layoutDirection() == Qt.RightToLeft else "border-left"
+        align = "right" if QApplication.instance() and QApplication.instance().layoutDirection() == Qt.RightToLeft else "left"
         if self._selected:
-            self.setStyleSheet("""
-                QPushButton { background-color: #2a2a4a; color: #ffffff; border: none;
-                    border-left: 3px solid #4CAF50; text-align: left; padding: 10px 16px;
-                    font-size: 13px; font-weight: bold; border-radius: 0; }
-            """)
+            self.setStyleSheet(f"""QPushButton {{ background-color: #2a2a4a; color: #ffffff; border: none;
+                {border}: 3px solid #4CAF50; text-align: {align}; padding: 10px 16px;
+                font-size: 13px; font-weight: bold; border-radius: 0; }}""")
         else:
-            self.setStyleSheet("""
-                QPushButton { background-color: transparent; color: #aaa; border: none;
-                    border-left: 3px solid transparent; text-align: left; padding: 10px 16px;
-                    font-size: 13px; border-radius: 0; }
-                QPushButton:hover { background-color: #1e1e32; color: #ddd; }
-            """)
+            self.setStyleSheet(f"""QPushButton {{ background-color: transparent; color: #aaa; border: none;
+                {border}: 3px solid transparent; text-align: {align}; padding: 10px 16px;
+                font-size: 13px; border-radius: 0; }}
+            QPushButton:hover {{ background-color: #1e1e32; color: #ddd; }}""")
 
 
 class SidebarWidget(QFrame):
@@ -180,18 +158,19 @@ class SidebarWidget(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setLayoutDirection(Qt.RightToLeft)
         self.setFixedWidth(220)
-        self.setStyleSheet("""
-            SidebarWidget { background-color: #12122a; border-right: 1px solid #2a2a3e; }
-        """)
+        self.setStyleSheet("SidebarWidget { background-color: #12122a; border-left: 1px solid #2a2a3e; }")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         logo = QLabel("🖥 WinAdmin")
+        logo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         logo.setStyleSheet("color: #4CAF50; font-size: 20px; font-weight: bold; padding: 20px 16px 10px 16px;")
         layout.addWidget(logo)
-        subtitle = QLabel("System Administration Tool")
+        subtitle = QLabel("أداة إدارة النظام")
+        subtitle.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         subtitle.setStyleSheet("color: #666; font-size: 10px; padding: 0 16px 20px 16px;")
         layout.addWidget(subtitle)
         line = QFrame()
@@ -200,10 +179,12 @@ class SidebarWidget(QFrame):
         layout.addWidget(line)
 
         self.nav_buttons = []
-        pages = [("لوحة التحكم", "📊", 0), ("مراقبة الموارد", "📈", 1),
-                 ("إدارة العمليات", "⚙", 2), ("إدارة التخزين", "💾", 3),
-                 ("إدارة الخدمات", "🔧", 4), ("الأمان والصحة", "🛡", 5),
-                 ("السجلات والتقارير", "📋", 6), ("الأوامر", "💻", 7), ("الإعدادات", "⚙", 8)]
+        pages = [
+            ("لوحة التحكم", "📊", 0), ("مراقبة الموارد", "📈", 1),
+            ("إدارة العمليات", "⚙", 2), ("إدارة التخزين", "💾", 3),
+            ("إدارة الخدمات", "🔧", 4), ("الأمان والصحة", "🛡", 5),
+            ("السجلات والتقارير", "📋", 6), ("الأوامر", "💻", 7), ("الإعدادات", "⚙", 8)
+        ]
         for name, icon, idx in pages:
             btn = NavButton(name, icon, idx)
             btn.clicked.connect(lambda checked, i=idx: self._on_nav_clicked(i))
@@ -211,6 +192,8 @@ class SidebarWidget(QFrame):
             self.nav_buttons.append(btn)
         layout.addStretch()
         version = QLabel("v1.0.0 | Python")
+        version.setLayoutDirection(Qt.LeftToRight)
+        version.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         version.setStyleSheet("color: #555; font-size: 9px; padding: 10px 16px;")
         layout.addWidget(version)
         self.nav_buttons[0].set_selected(True)
@@ -225,6 +208,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.setLayoutDirection(Qt.RightToLeft)
         self.setWindowTitle("WinAdmin — أداة إدارة النظام")
         self.setMinimumSize(1100, 700)
         self.resize(1300, 800)
@@ -232,30 +216,28 @@ class MainWindow(QMainWindow):
         appdata = os.getenv('LOCALAPPDATA') or os.getenv('APPDATA') or os.path.expanduser('~')
         db_dir = os.path.join(appdata, 'WinAdmin')
         os.makedirs(db_dir, exist_ok=True)
-        db_path = os.path.join(db_dir, 'winadmin.db')
-        self.db = OptimizedDatabaseManager(db_path)
+        self.db = OptimizedDatabaseManager(os.path.join(db_dir, 'winadmin.db'))
         self.alert_manager = AlertManager(self.db)
-
-        theme = self.db.get_setting("theme", "dark")
-        self._apply_theme(theme)
+        self._apply_theme(self.db.get_setting("theme", "dark"))
         self._setup_ui()
 
         if os.name == "nt" and not is_admin():
             reply = QMessageBox.question(
                 self, "تحتاج صلاحيات المدير",
                 "هذا التطبيق يفضل التشغيل بصلاحيات Administrator لعمل بعض الأدوات.\nهل تريد إعادة التشغيل بصلاحيات الإدارة؟",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
-            if reply == QMessageBox.Yes:
-                if relaunch_as_admin():
-                    self.close()
-                    return
+            if reply == QMessageBox.Yes and relaunch_as_admin():
+                self.close()
+                return
         logger.info("تم تشغيل WinAdmin بنجاح")
 
     def _setup_ui(self):
         central = QWidget()
+        central.setLayoutDirection(Qt.RightToLeft)
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
+        main_layout.setDirection(QHBoxLayout.RightToLeft)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -263,26 +245,32 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.sidebar)
 
         content_frame = QFrame()
+        content_frame.setLayoutDirection(Qt.RightToLeft)
         content_frame.setStyleSheet("QFrame { background: #1a1a2e; }")
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
         top_bar = QFrame()
+        top_bar.setLayoutDirection(Qt.RightToLeft)
         top_bar.setFixedHeight(40)
         top_bar.setStyleSheet("background: #12122a; border-bottom: 1px solid #2a2a3e;")
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(15, 0, 15, 0)
         self.lbl_top_title = QLabel("لوحة التحكم")
+        self.lbl_top_title.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.lbl_top_title.setStyleSheet("color: #e0e0e0; font-size: 14px; font-weight: bold;")
         top_layout.addWidget(self.lbl_top_title)
         top_layout.addStretch()
         self.lbl_time = QLabel("")
+        self.lbl_time.setLayoutDirection(Qt.LeftToRight)
+        self.lbl_time.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.lbl_time.setStyleSheet("color: #888; font-size: 11px;")
         top_layout.addWidget(self.lbl_time)
         content_layout.addWidget(top_bar)
 
         self.stack = QStackedWidget()
+        self.stack.setLayoutDirection(Qt.RightToLeft)
         self.stack.setStyleSheet("QStackedWidget { background: #1a1a2e; }")
         self.page_factories = [
             lambda: DashboardWidget(self.db, self.alert_manager),
@@ -297,13 +285,11 @@ class MainWindow(QMainWindow):
         ]
         self.pages = [None] * len(self.page_factories)
         self._ensure_page(0)
-        content_layout.addWidget(self.stack)
-        main_layout.addWidget(content_frame, 1)
+        content_layout.addWidget(self.stack, 1)
 
         for btn in self.sidebar.nav_buttons:
             btn.clicked.connect(lambda _, idx=btn.page_index: self._switch_page(idx))
 
-        from PyQt5.QtCore import QTimer
         self._time_timer = QTimer(self)
         self._time_timer.timeout.connect(self._update_time)
         self._time_timer.start(1000)
@@ -313,6 +299,7 @@ class MainWindow(QMainWindow):
         if 0 <= index < len(self.page_factories):
             if self.pages[index] is None:
                 page = self.page_factories[index]()
+                page.setLayoutDirection(Qt.RightToLeft)
                 self.pages[index] = page
                 self.stack.addWidget(page)
             return self.pages[index]
@@ -320,7 +307,6 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _stop_page_timers(page):
-        """إيقاف مؤقتات الصفحات المخفية لمنع تراكم العمل في الخلفية."""
         for name in ("timer", "timer_slow"):
             timer = getattr(page, name, None)
             if timer is not None and timer.isActive():
@@ -328,7 +314,6 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _resume_page_timers(page):
-        """استئناف مؤقتات الصفحة الحالية دون إنشاء مؤقتات جديدة."""
         for name in ("timer", "timer_slow"):
             timer = getattr(page, name, None)
             if timer is not None and not timer.isActive():
@@ -338,16 +323,15 @@ class MainWindow(QMainWindow):
         page = self._ensure_page(index)
         if page is None:
             return
-
-        # لا تسمح للصفحات المخفية بالاستمرار في تحديث النظام والجداول.
         for other in self.pages:
             if other is not None and other is not page:
                 self._stop_page_timers(other)
-
         self.stack.setCurrentWidget(page)
         self._resume_page_timers(page)
-        titles = ["لوحة التحكم", "مراقبة الموارد", "إدارة العمليات", "إدارة التخزين",
-                  "إدارة الخدمات", "الأمان والصحة", "السجلات والتقارير", "الأوامر", "الإعدادات"]
+        titles = [
+            "لوحة التحكم", "مراقبة الموارد", "إدارة العمليات", "إدارة التخزين",
+            "إدارة الخدمات", "الأمان والصحة", "السجلات والتقارير", "الأوامر", "الإعدادات"
+        ]
         self.lbl_top_title.setText(titles[index] if index < len(titles) else "")
         for btn in self.sidebar.nav_buttons:
             btn.set_selected(btn.page_index == index)
@@ -364,19 +348,24 @@ class MainWindow(QMainWindow):
             if page is None:
                 continue
             try:
-                if hasattr(page, 'stop'):
+                if hasattr(page, "stop"):
                     page.stop()
             except Exception:
-                logger.exception("Error stopping page %s", getattr(page, '__class__', type(page)))
+                logger.exception("Error stopping page %s", type(page).__name__)
         try:
+            if hasattr(self, "_time_timer"):
+                self._time_timer.stop()
             self.db.close()
         except Exception:
-            logger.exception("Error closing database")
+            logger.exception("Error closing application")
         event.accept()
 
 
 def main():
     app = QApplication(sys.argv)
+    # اتجاه التطبيق بالكامل من اليمين إلى اليسار للعربية.
+    app.setLayoutDirection(Qt.RightToLeft)
+    app.setApplicationDisplayName("WinAdmin")
     app.setApplicationName("WinAdmin")
     app.setApplicationVersion("1.0.0")
     window = MainWindow()
