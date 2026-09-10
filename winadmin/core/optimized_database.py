@@ -4,6 +4,9 @@ import sqlite3
 from datetime import datetime
 from .database import DatabaseManager
 
+# تطبيق تحسينات SystemInfo قبل إنشاء أي صفحة تعتمد عليه.
+from . import runtime_optimizations  # noqa: F401
+
 
 class OptimizedDatabaseManager(DatabaseManager):
     """طبقة توافق تضبط نمو سجل الأداء واستعلاماته الثقيلة."""
@@ -66,7 +69,6 @@ class OptimizedDatabaseManager(DatabaseManager):
                 )
                 return [dict(row) for row in cursor.fetchall()]
 
-            # أخذ عينات منتظمة مع الاحتفاظ بالبداية والنهاية.
             step = max(1, (count + self.HISTORY_MAX_ROWS - 1) // self.HISTORY_MAX_ROWS)
             cursor = self.conn.execute(
                 """
