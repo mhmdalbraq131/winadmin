@@ -277,26 +277,84 @@ class CommandsWidget(QWidget):
     def _build_overview(self):
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setSpacing(12)
+        layout.setContentsMargins(3, 3, 3, 3)
+
         title = QLabel("🧰 مركز الأوامر")
-        title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #e0e0e0;")
         layout.addWidget(title)
-        desc = QLabel("اختر القسم المطلوب. جميع الأوامر تعمل في الخلفية حتى لا تتجمد الواجهة.")
+
+        desc = QLabel("مركز أدوات مدير النظام — اختر القسم المطلوب")
+        desc.setStyleSheet("color: #aaa; font-size: 12px;")
         layout.addWidget(desc)
+
+        actions = QWidget()
+        actions_layout = QHBoxLayout(actions)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
+        actions_layout.setSpacing(10)
+        quick_actions = [
+            ("فحص صحة النظام", lambda: self.show_page("diagnostics")),
+            ("مسح DNS", lambda: self.show_page("network")),
+            ("اختبار الشبكة", lambda: self.show_page("network")),
+            ("عرض العمليات", lambda: self.show_page("processes")),
+            ("عرض الخدمات", lambda: self.show_page("services")),
+        ]
+        for label, callback in quick_actions:
+            button = QPushButton(label)
+            button.setMinimumHeight(38)
+            button.clicked.connect(callback)
+            actions_layout.addWidget(button)
+        layout.addWidget(actions)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
         content = QWidget()
         grid = QGridLayout(content)
+        grid.setSpacing(12)
+
         categories = [
-            ("🌐 الشبكة", "network"), ("⚙️ العمليات", "processes"), ("🛠️ الخدمات", "services"),
-            ("💾 التخزين", "storage"), ("🖥️ النظام", "system"), ("🔐 الأمان", "security"),
-            ("📋 السجلات", "events"), ("👤 المستخدمون", "users"), ("🔧 الإصلاح", "repair"),
-            ("🔄 التحديثات", "updates"), ("🧹 الصيانة", "maintenance"), ("🧪 التشخيص", "diagnostics"),
+            ("🌐 الشبكة", "أدوات الشبكة والاتصال", "network"),
+            ("⚙️ العمليات", "إدارة العمليات", "processes"),
+            ("🛠️ الخدمات", "إدارة خدمات Windows", "services"),
+            ("💾 التخزين", "الأقراص ومساحات التخزين", "storage"),
+            ("🖥️ معلومات النظام", "معلومات الجهاز والنظام", "system"),
+            ("🔐 الأمان", "الأمان والحماية", "security"),
+            ("📋 السجلات", "سجلات Windows", "events"),
+            ("👤 المستخدمون", "المستخدمون والصلاحيات", "users"),
+            ("🔧 الإصلاح", "أدوات إصلاح Windows", "repair"),
+            ("🔄 التحديثات", "Windows Update", "updates"),
+            ("🧹 الصيانة", "الصيانة والتنظيف", "maintenance"),
+            ("🧪 التشخيص", "فحوصات وتشخيص النظام", "diagnostics"),
         ]
-        for index, (label, key) in enumerate(categories):
-            button = QPushButton(label)
-            button.setMinimumHeight(55)
+
+        for index, (label, description, key) in enumerate(categories):
+            card = QWidget()
+            card.setMinimumHeight(105)
+            card.setStyleSheet(
+                "QWidget { background: #1e1e32; border: 1px solid #2a2a3e; border-radius: 8px; }"
+            )
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(12, 12, 12, 12)
+            card_layout.setSpacing(6)
+
+            card_label = QLabel(label)
+            card_label.setStyleSheet("font-size: 15px; font-weight: bold; color: #e0e0e0; border: none;")
+            card_layout.addWidget(card_label)
+
+            card_desc = QLabel(description)
+            card_desc.setStyleSheet("font-size: 11px; color: #aaa; border: none;")
+            card_layout.addWidget(card_desc)
+
+            button = QPushButton("فتح القسم")
+            button.setStyleSheet(
+                "QPushButton { background: #2a2a4a; color: #e0e0e0; border: none; padding: 7px 12px; border-radius: 4px; }"
+                "QPushButton:hover { background: #3a3a5a; }"
+            )
             button.clicked.connect(lambda _checked=False, k=key: self.show_page(k))
-            grid.addWidget(button, index // 3, index % 3)
+            card_layout.addWidget(button)
+            grid.addWidget(card, index // 3, index % 3)
+
         scroll.setWidget(content)
         layout.addWidget(scroll, 1)
         return page
