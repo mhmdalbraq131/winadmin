@@ -154,8 +154,6 @@ class NavButton(QPushButton):
 class SidebarWidget(QFrame):
     """الشريط الجانبي للتنقل."""
 
-    page_changed = None
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayoutDirection(Qt.RightToLeft)
@@ -220,16 +218,6 @@ class MainWindow(QMainWindow):
         self.alert_manager = AlertManager(self.db)
         self._apply_theme(self.db.get_setting("theme", "dark"))
         self._setup_ui()
-
-        if os.name == "nt" and not is_admin():
-            reply = QMessageBox.question(
-                self, "تحتاج صلاحيات المدير",
-                "هذا التطبيق يفضل التشغيل بصلاحيات Administrator لعمل بعض الأدوات.\nهل تريد إعادة التشغيل بصلاحيات الإدارة؟",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply == QMessageBox.Yes and relaunch_as_admin():
-                self.close()
-                return
         logger.info("تم تشغيل WinAdmin بنجاح")
 
     def _setup_ui(self):
@@ -237,12 +225,12 @@ class MainWindow(QMainWindow):
         central.setLayoutDirection(Qt.RightToLeft)
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
-        main_layout.setDirection(QHBoxLayout.RightToLeft)
+        # ترتيب العناصر الفيزيائي ثابت: المحتوى أولاً ثم الشريط الجانبي في اليمين.
+        main_layout.setDirection(QHBoxLayout.LeftToRight)
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.sidebar = SidebarWidget()
-        main_layout.addWidget(self.sidebar)
 
         content_frame = QFrame()
         content_frame.setLayoutDirection(Qt.RightToLeft)
@@ -286,6 +274,8 @@ class MainWindow(QMainWindow):
         self.pages = [None] * len(self.page_factories)
         self._ensure_page(0)
         content_layout.addWidget(self.stack, 1)
+        main_layout.addWidget(content_frame, 1)
+        main_layout.addWidget(self.sidebar)
 
         for btn in self.sidebar.nav_buttons:
             btn.clicked.connect(lambda _, idx=btn.page_index: self._switch_page(idx))
@@ -297,14 +287,25 @@ class MainWindow(QMainWindow):
         self._update_time()
 
     def _ensure_page(self, index: int):
-        if 0 <= index < len(self.page_factories):
-            if self.pages[index] is None:
+        if not (0 <= index < len(self.page_factories)):
+            return None
+        if self.pages[index] is None:
+            try:
                 page = self.page_factories[index]()
+                if page is None:
+                    raise RuntimeError(f"Page factory returned None for index {index}")
                 page.setLayoutDirection(Qt.RightToLeft)
                 self.pages[index] = page
                 self.stack.addWidget(page)
-            return self.pages[index]
-        return None
+            except Exception as exc:
+                logger.exception("Failed to create page %s", index)
+                QMessageBox.critical(
+                    self,
+                    "خطأ في فتح الصفحة",
+                    f"تعذر فتح الصفحة المطلوبة.\n\n{exc}"
+                )
+                return None
+        return self.pages[index]
 
     @staticmethod
     def _stop_page_timers(page):
@@ -321,21 +322,36 @@ class MainWindow(QMainWindow):
                 timer.start()
 
     def _switch_page(self, index: int):
-        page = self._ensure_page(index)
-        if page is None:
-            return
-        for other in self.pages:
-            if other is not None and other is not page:
-                self._stop_page_timers(other)
-        self.stack.setCurrentWidget(page)
-        self._resume_page_timers(page)
-        titles = [
-            "لوحة التحكم", "مراقبة الموارد", "إدارة العمليات", "إدارة التخزين",
-            "إدارة الخدمات", "الأمان والصحة", "السجلات والتقارير", "الأوامر", "الإعدادات"
-        ]
-        self.lbl_top_title.setText(titles[index] if index < len(titles) else "")
-        for btn in self.sidebar.nav_buttons:
-            btn.set_selected(btn.page_index == index)
+        try:
+            page = self._ensure_page(index)
+            if page is None:
+                return
+            for other in self.pages:
+                if other is not None and other is not page:
+                    self._stop_page_timers(other)
+            self.stack.setCurrentWidget(page)
+            self._resume_page_timers(page)
+            titles = [
+                "لوحة التحكم", "مراقبة الموارد", "إدارة العمليات", "إدارة التخزين",
+                "إدارة الخدمات", "الأمان والصحة", "السجلات والتقارير", "الأوامر", "الإعدادات"
+            ]
+            self.lbl_top_title.setText(titles[index] if index < len(titles) else "")
+            for btn in self.sidebar.nav_buttons:
+                btn.set_selected(btn.page_index == index)
+        except RuntimeError as exc:
+            logger.exception("Qt runtime error while switching to page %s", index)
+            QMessageBox.critical(
+                self,
+                "خطأ في النافذة",
+                f"حدث خطأ أثناء فتح الصفحة:\n\n{exc}"
+            )
+        except Exception as exc:
+            logger.exception("Unexpected error while switching to page %s", index)
+            QMessageBox.critical(
+                self,
+                "خطأ في فتح الصفحة",
+                f"حدث خطأ غير متوقع:\n\n{exc}"
+            )
 
     def _update_time(self):
         """تحديث الساعة بأمان حتى أثناء إغلاق/إعادة تشغيل النافذة."""
@@ -345,7 +361,6 @@ class MainWindow(QMainWindow):
                 return
             label.setText(datetime.now().strftime("%Y-%m-%d  %H:%M:%S"))
         except RuntimeError:
-            # قد تصل إشارة QTimer معلقة بعد حذف كائن QLabel في Qt.
             return
 
     def _apply_theme(self, theme: str):
@@ -362,7 +377,7 @@ class MainWindow(QMainWindow):
                     pass
         except (RuntimeError, AttributeError):
             pass
-        for page in self.pages:
+        for page in getattr(self, "pages", []):
             if page is None:
                 continue
             try:
@@ -384,6 +399,21 @@ def main():
     app.setApplicationDisplayName("WinAdmin")
     app.setApplicationName("WinAdmin")
     app.setApplicationVersion("1.0.0")
+
+    # يجب طلب صلاحيات Administrator قبل إنشاء MainWindow،
+    # حتى لا يتم إنشاء النافذة ثم إغلاقها أثناء __init__.
+    if os.name == "nt" and not is_admin():
+        reply = QMessageBox.question(
+            None,
+            "تحتاج صلاحيات المدير",
+            "هذا التطبيق يفضل التشغيل بصلاحيات Administrator لعمل بعض الأدوات.\n"
+            "هل تريد إعادة التشغيل بصلاحيات الإدارة؟",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes and relaunch_as_admin():
+            return
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
