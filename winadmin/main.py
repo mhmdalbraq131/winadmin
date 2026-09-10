@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (
     QPushButton, QLabel, QStackedWidget, QFrame, QSizePolicy, QMessageBox
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import QIcon, QFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -244,7 +243,6 @@ class MainWindow(QMainWindow):
         logger.info("تم تشغيل WinAdmin بنجاح")
 
     def _setup_ui(self):
-        # الحاوية الرئيسية LTR حتى يكون موضع الشريط الفيزيائي ثابتاً في اليمين.
         central = QWidget()
         central.setLayoutDirection(Qt.LeftToRight)
         self.setCentralWidget(central)
@@ -305,7 +303,6 @@ class MainWindow(QMainWindow):
         self.sidebar = SidebarWidget()
         self.sidebar.navigation_requested.connect(self._switch_page)
 
-        # المحتوى أولاً، الشريط الجانبي ثانياً = الشريط ثابت في أقصى اليمين.
         main_layout.addWidget(content_frame, 1)
         main_layout.addWidget(self.sidebar, 0)
 
@@ -328,7 +325,6 @@ class MainWindow(QMainWindow):
             page = self.page_factories[index]()
             if page is None:
                 raise RuntimeError(f"Page factory returned None for index {index}")
-
             page.setLayoutDirection(Qt.RightToLeft)
             self.pages[index] = page
             self.stack.addWidget(page)
