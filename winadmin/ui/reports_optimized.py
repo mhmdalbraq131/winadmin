@@ -1,8 +1,8 @@
 """واجهة التقارير المحسّنة: تقليل التكدس وإضافة الطباعة."""
 
 import os
-from PyQt5.QtWidgets import QPushButton, QMessageBox, QPrintDialog
-from PyQt5.QtPrintSupport import QPrinter
+from PyQt5.QtWidgets import QPushButton, QMessageBox
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt5.QtGui import QTextDocument
 
 from .reports import ReportsWidget as LegacyReportsWidget
@@ -16,7 +16,6 @@ class ReportsWidget(LegacyReportsWidget):
         self._report_sections_for_collection = None
         super().__init__(db_manager, parent)
 
-        # إضافة زر الطباعة إلى تبويب التقارير بعد بناء الواجهة الأصلية.
         try:
             reports_tab = self.tabs.widget(3)
             layout = reports_tab.layout()
@@ -58,7 +57,6 @@ class ReportsWidget(LegacyReportsWidget):
                 except Exception:
                     payload[section] = {} if section not in ("storage", "services", "processes") else []
 
-        # الاتصالات الشبكية كانت تُجمع دائماً حتى عند عدم الحاجة إليها.
         if "network" in payload:
             payload["network"]["connections"] = []
             try:
@@ -110,7 +108,6 @@ class ReportsWidget(LegacyReportsWidget):
 
         document = QTextDocument()
         document.setPlainText(content)
-
         printer = QPrinter(QPrinter.HighResolution)
         dialog = QPrintDialog(printer, self)
         dialog.setWindowTitle("طباعة تقرير WinAdmin")
