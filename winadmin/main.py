@@ -90,7 +90,7 @@ QProgressBar { background: #1e1e32; border: 1px solid #2a2a3e; border-radius: 4p
 QProgressBar::chunk { border-radius: 3px; }
 QComboBox { background-color: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; border-radius: 3px; }
 QComboBox QAbstractItemView { background: #1e1e32; color: #e0e0e0; selection-background-color: #2a2a4a; }
-QSpinBox { background-color: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; }
+QSpinBox { background: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; }
 QCheckBox { color: #ccc; spacing: 6px; }
 QDateEdit { background: #1e1e32; color: #e0e0e0; border: 1px solid #2a2a4a; padding: 5px; }
 QLabel { color: #e0e0e0; }
@@ -291,6 +291,7 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda _, idx=btn.page_index: self._switch_page(idx))
 
         self._time_timer = QTimer(self)
+        self._time_timer.setTimerType(Qt.CoarseTimer)
         self._time_timer.timeout.connect(self._update_time)
         self._time_timer.start(1000)
         self._update_time()
@@ -337,13 +338,30 @@ class MainWindow(QMainWindow):
             btn.set_selected(btn.page_index == index)
 
     def _update_time(self):
-        self.lbl_time.setText(datetime.now().strftime("%Y-%m-%d  %H:%M:%S"))
+        """تحديث الساعة بأمان حتى أثناء إغلاق/إعادة تشغيل النافذة."""
+        try:
+            label = getattr(self, "lbl_time", None)
+            if label is None:
+                return
+            label.setText(datetime.now().strftime("%Y-%m-%d  %H:%M:%S"))
+        except RuntimeError:
+            # قد تصل إشارة QTimer معلقة بعد حذف كائن QLabel في Qt.
+            return
 
     def _apply_theme(self, theme: str):
         QApplication.instance().setStyleSheet(LIGHT_STYLE if theme == "light" else DARK_STYLE)
 
     def closeEvent(self, event):
         logger.info("جاري إغلاق WinAdmin...")
+        try:
+            if hasattr(self, "_time_timer"):
+                self._time_timer.stop()
+                try:
+                    self._time_timer.timeout.disconnect(self._update_time)
+                except (TypeError, RuntimeError):
+                    pass
+        except (RuntimeError, AttributeError):
+            pass
         for page in self.pages:
             if page is None:
                 continue
@@ -353,11 +371,9 @@ class MainWindow(QMainWindow):
             except Exception:
                 logger.exception("Error stopping page %s", type(page).__name__)
         try:
-            if hasattr(self, "_time_timer"):
-                self._time_timer.stop()
             self.db.close()
         except Exception:
-            logger.exception("Error closing application")
+            logger.exception("Error closing database")
         event.accept()
 
 
