@@ -110,6 +110,7 @@ class ResourceMonitorWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._prev_net = {"sent": 0, "recv": 0}
+        self._core_bars = []
         self._setup_ui()
         self._start_timers()
 
@@ -242,7 +243,7 @@ class ResourceMonitorWidget(QWidget):
         self._update_data()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_data)
-        self.timer.start(1500)
+        self.timer.start(2000)
 
     def _update_data(self):
         """تحديث جميع بيانات المراقبة."""
@@ -255,23 +256,27 @@ class ResourceMonitorWidget(QWidget):
             self.lbl_cpu_cores.setText(f"الأنوية: {cpu.get('count_physical', '?')}F / {cpu.get('count_logical', '?')}L")
             self.lbl_cpu_temp.setText("الحرارة: —")
 
-            # أنوية فردية — أشرطة تقدم
+            # أنوية فردية — أنشئ الأشرطة مرة واحدة فقط ثم حدّث قيمها.
+            # إعادة إنشاء عشرات الـQProgressBar كل 1.5 ثانية كانت تسبب تقطيعًا واضحًا.
             per_cpu = cpu.get("per_cpu", [])
-            # نحدث الأشرطة فقط إذا تغير عددها
-            while self.cpu_per_core_layout.count():
-                item = self.cpu_per_core_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-            for i, pct in enumerate(per_cpu):
-                bar = QProgressBar()
-                bar.setMaximum(100)
+            if len(self._core_bars) != len(per_cpu):
+                while self.cpu_per_core_layout.count():
+                    item = self.cpu_per_core_layout.takeAt(0)
+                    if item.widget():
+                        item.widget().deleteLater()
+                self._core_bars = []
+                for i in range(len(per_cpu)):
+                    bar = QProgressBar()
+                    bar.setMaximum(100)
+                    bar.setFormat(f"Core {i}: %p%")
+                    bar.setStyleSheet("""
+                        QProgressBar { background: #1e1e32; border: none; border-radius: 3px; text-align: center; color: white; max-height: 16px; }
+                        QProgressBar::chunk { background: #4CAF50; border-radius: 3px; }
+                    """)
+                    self.cpu_per_core_layout.addWidget(bar)
+                    self._core_bars.append(bar)
+            for bar, pct in zip(self._core_bars, per_cpu):
                 bar.setValue(int(pct))
-                bar.setFormat(f"Core {i}: {pct:.0f}%")
-                bar.setStyleSheet("""
-                    QProgressBar { background: #1e1e32; border: none; border-radius: 3px; text-align: center; color: white; max-height: 16px; }
-                    QProgressBar::chunk { background: #4CAF50; border-radius: 3px; }
-                """)
-                self.cpu_per_core_layout.addWidget(bar)
 
             # RAM
             mem = SystemInfo.get_memory_info()
@@ -325,4 +330,7 @@ class ResourceMonitorWidget(QWidget):
             pass
 
     def stop(self):
-        self.timer.stop()
+        try:
+            self.timer.stop()
+        except Exception:
+            pass
