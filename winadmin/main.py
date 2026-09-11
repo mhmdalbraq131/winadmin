@@ -42,23 +42,37 @@ def relaunch_as_admin():
     except Exception:
         logger.exception("Error while relaunching as admin"); return False
 
-DARK_STYLE = """QMainWindow{background:#1a1a2e} QWidget{background:#1a1a2e;color:#e0e0e0;font-family:'Segoe UI',Arial;font-size:12px}
-QPushButton{background:#2a2a4a;color:#e0e0e0;border:1px solid #3a3a5a;padding:6px 14px;border-radius:4px}
-QPushButton:hover{background:#3a3a5a} QPushButton:pressed{background:#4a4a6a} QLineEdit{background:#1e1e32;color:#e0e0e0;border:1px solid #2a2a4a;padding:5px;border-radius:3px}
-QTableWidget{background:#1e1e32;color:#ccc;gridline-color:#2a2a3e;border:none} QHeaderView::section{background:#2a2a4a;color:#eee;padding:5px;border:1px solid #2a2a3e}
-QScrollBar:vertical{background:#1a1a2e;width:10px} QScrollBar::handle:vertical{background:#2a2a4a;border-radius:4px;min-height:20px}
-QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0} QGroupBox{border:1px solid #2a2a3e;border-radius:6px;margin-top:10px;padding-top:15px;color:#e0e0e0}
-QTabWidget::pane{border:1px solid #2a2a3e;background:#1a1a2e} QTabBar::tab{background:#1e1e32;color:#aaa;padding:8px 16px;border:1px solid #2a2a3e} QTabBar::tab:selected{background:#2a2a4a;color:#fff}
-QProgressBar{background:#1e1e32;border:1px solid #2a2a3e;border-radius:4px;text-align:center;color:white} QProgressBar::chunk{border-radius:3px}
-QComboBox{background:#1e1e32;color:#e0e0e0;border:1px solid #2a2a4a;padding:5px;border-radius:3px} QComboBox QAbstractItemView{background:#1e1e32;color:#e0e0e0;selection-background-color:#2a2a4a}
-QSpinBox,QDateEdit{background:#1e1e32;color:#e0e0e0;border:1px solid #2a2a4a;padding:5px} QCheckBox{color:#ccc;spacing:6px} QLabel{color:#e0e0e0} QScrollArea{border:none;background:#1a1a2e}"""
-LIGHT_STYLE = """QMainWindow{background:#f5f5f5} QWidget{background:#f5f5f5;color:#333;font-family:'Segoe UI',Arial;font-size:12px}
-QPushButton{background:#e0e0e0;color:#333;border:1px solid #ccc;padding:6px 14px;border-radius:4px} QPushButton:hover{background:#d0d0d0}
-QLineEdit,QComboBox,QSpinBox,QDateEdit{background:#fff;color:#333;border:1px solid #ccc;padding:5px;border-radius:3px} QTableWidget{background:#fff;color:#333;gridline-color:#ddd;border:none}
-QHeaderView::section{background:#e8e8e8;color:#333;padding:5px;border:1px solid #ddd} QScrollBar:vertical{background:#f0f0f0;width:10px} QScrollBar::handle:vertical{background:#ccc;border-radius:4px;min-height:20px}
-QGroupBox{border:1px solid #ddd;border-radius:6px;margin-top:10px;padding-top:15px;color:#333} QTabWidget::pane{border:1px solid #ddd;background:#f5f5f5}
-QTabBar::tab{background:#e8e8e8;color:#666;padding:8px 16px;border:1px solid #ddd} QTabBar::tab:selected{background:#fff;color:#333}
-QProgressBar{background:#e8e8e8;border:1px solid #ddd;border-radius:4px;text-align:center;color:#333} QProgressBar::chunk{background:#4CAF50;border-radius:3px} QCheckBox,QLabel{color:#333}"""
+DARK_STYLE = """QMainWindow{background:#171725} QWidget{background:#171725;color:#e8e8f0;font-family:'Segoe UI',Arial;font-size:12px}
+QPushButton{background:#24243a;color:#e8e8f0;border:1px solid #35354d;padding:7px 14px;border-radius:6px}
+QPushButton:hover{background:#30304a;border-color:#4a4a68} QPushButton:pressed{background:#3a3a56} QPushButton:disabled{color:#666;background:#20202f}
+QLineEdit,QComboBox,QSpinBox,QDateEdit{background:#202034;color:#e8e8f0;border:1px solid #35354d;padding:6px;border-radius:6px;selection-background-color:#3b3b5a}
+QTableWidget{background:#202034;color:#d9d9e4;gridline-color:#303047;border:1px solid #2b2b40;border-radius:7px}
+QHeaderView::section{background:#292940;color:#f0f0f5;padding:7px;border:0;border-bottom:1px solid #3a3a52;font-weight:600}
+QScrollBar:vertical{background:#171725;width:11px} QScrollBar::handle:vertical{background:#35354c;border-radius:5px;min-height:28px}
+QScrollBar::handle:vertical:hover{background:#464665} QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0}
+QGroupBox{border:1px solid #303047;border-radius:8px;margin-top:12px;padding-top:17px;color:#dddde8}
+QTabWidget::pane{border:1px solid #303047;border-radius:7px;background:#1b1b2c}
+QTabBar::tab{background:#222238;color:#9696a8;padding:9px 18px;border:0;border-bottom:2px solid transparent}
+QTabBar::tab:selected{background:#2a2a42;color:#fff;border-bottom:2px solid #4CAF50}
+QProgressBar{background:#202034;border:1px solid #303047;border-radius:6px;text-align:center;color:white;min-height:18px}
+QProgressBar::chunk{background:#4CAF50;border-radius:5px}
+QCheckBox{color:#ccc;spacing:7px} QLabel{color:#e8e8f0} QScrollArea{border:none;background:#171725}
+QToolTip{background:#28283f;color:#f0f0f5;border:1px solid #4a4a66;padding:5px} QMessageBox{background:#1b1b2c}"""
+LIGHT_STYLE = """QMainWindow{background:#f4f6f9} QWidget{background:#f4f6f9;color:#28313d;font-family:'Segoe UI',Arial;font-size:12px}
+QPushButton{background:#fff;color:#28313d;border:1px solid #d7dce5;padding:7px 14px;border-radius:6px}
+QPushButton:hover{background:#eef2f7;border-color:#b9c2d0} QPushButton:pressed{background:#e5eaf1}
+QLineEdit,QComboBox,QSpinBox,QDateEdit{background:#fff;color:#28313d;border:1px solid #d7dce5;padding:6px;border-radius:6px}
+QTableWidget{background:#fff;color:#28313d;gridline-color:#e4e7ed;border:1px solid #dfe3ea;border-radius:7px}
+QHeaderView::section{background:#eef1f5;color:#394150;padding:7px;border:0;border-bottom:1px solid #d9dee7;font-weight:600}
+QScrollBar:vertical{background:#eef1f5;width:11px} QScrollBar::handle:vertical{background:#c7ced9;border-radius:5px;min-height:28px}
+QScrollBar::handle:vertical:hover{background:#adb7c6} QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0}
+QGroupBox{border:1px solid #dfe3ea;border-radius:8px;margin-top:12px;padding-top:17px;color:#394150}
+QTabWidget::pane{border:1px solid #dfe3ea;border-radius:7px;background:#f8f9fb}
+QTabBar::tab{background:#eef1f5;color:#687181;padding:9px 18px;border:0;border-bottom:2px solid transparent}
+QTabBar::tab:selected{background:#fff;color:#28313d;border-bottom:2px solid #4CAF50}
+QProgressBar{background:#e9edf2;border:1px solid #d7dce5;border-radius:6px;text-align:center;color:#28313d;min-height:18px}
+QProgressBar::chunk{background:#4CAF50;border-radius:5px} QCheckBox,QLabel{color:#28313d} QScrollArea{border:none;background:#f4f6f9}
+QToolTip{background:#fff;color:#28313d;border:1px solid #cfd6e0;padding:5px} QMessageBox{background:#f4f6f9}"""
 
 
 class NavButton(QPushButton):
@@ -81,7 +95,7 @@ class SidebarWidget(QFrame):
     navigation_requested = pyqtSignal(int)
     PAGES = [("لوحة التحكم","📊",0),("مراقبة الموارد","📈",1),("إدارة العمليات","⚙",2),("إدارة التخزين","💾",3),("إدارة الخدمات","🔧",4),("الأمان والصحة","🛡",5),("السجلات والتقارير","📋",6),("الأوامر","💻",7),("الإعدادات","⚙",8)]
     def __init__(self, parent=None):
-        super().__init__(parent); self.setFixedWidth(230); self.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Expanding)
+        super().__init__(parent); self.setFixedWidth(218); self.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Expanding)
         self.setStyleSheet("SidebarWidget{background:#12122a;border-left:1px solid #2a2a3e}")
         layout=QVBoxLayout(self); layout.setContentsMargins(0,0,0,0); layout.setSpacing(0)
         self.logo=QLabel("🖥 WinAdmin"); self.logo.setStyleSheet("color:#4CAF50;font-size:20px;font-weight:bold;padding:20px 16px 10px"); layout.addWidget(self.logo)
@@ -106,7 +120,7 @@ class SidebarWidget(QFrame):
 class MainWindow(QMainWindow):
     PAGE_TITLES=("لوحة التحكم","مراقبة الموارد","إدارة العمليات","إدارة التخزين","إدارة الخدمات","الأمان والصحة","السجلات والتقارير","الأوامر","الإعدادات")
     def __init__(self):
-        super().__init__(); self._language=normalize_language("ar"); self.setMinimumSize(1100,700); self.resize(1300,800)
+        super().__init__(); self._language=normalize_language("ar"); self.setMinimumSize(980,650); self.resize(1280,800)
         self.setWindowTitle("WinAdmin — أداة إدارة النظام")
         appdata=os.getenv('LOCALAPPDATA') or os.getenv('APPDATA') or os.path.expanduser('~'); db_dir=os.path.join(appdata,'WinAdmin'); os.makedirs(db_dir,exist_ok=True)
         self.db=OptimizedDatabaseManager(os.path.join(db_dir,'winadmin.db')); self.alert_manager=AlertManager(self.db)
@@ -115,10 +129,10 @@ class MainWindow(QMainWindow):
         central=QWidget(); central.setLayoutDirection(Qt.LeftToRight); self.setCentralWidget(central)
         self.main_layout=QHBoxLayout(central); self.main_layout.setContentsMargins(0,0,0,0); self.main_layout.setSpacing(0)
         self.content_frame=QFrame(); self.content_frame.setStyleSheet("QFrame{background:#1a1a2e}"); content_layout=QVBoxLayout(self.content_frame); content_layout.setContentsMargins(0,0,0,0); content_layout.setSpacing(0)
-        self.top_bar=QFrame(); self.top_bar.setFixedHeight(50); self.top_bar.setStyleSheet("background:#12122a;border-bottom:1px solid #2a2a3e"); self.top_layout=QHBoxLayout(self.top_bar); self.top_layout.setContentsMargins(12,0,12,0); self.top_layout.setSpacing(8)
+        self.top_bar=QFrame(); self.top_bar.setFixedHeight(54); self.top_bar.setStyleSheet("background:#12122a;border-bottom:1px solid #2a2a3e"); self.top_layout=QHBoxLayout(self.top_bar); self.top_layout.setContentsMargins(12,0,12,0); self.top_layout.setSpacing(8)
         self.lbl_top_title=QLabel(); self.lbl_top_title.setStyleSheet("color:#e0e0e0;font-size:14px;font-weight:bold"); self.top_layout.addWidget(self.lbl_top_title); self.top_layout.addStretch()
         self.btn_hardware=QPushButton(); self.btn_hardware.setMinimumHeight(34); self.btn_hardware.setStyleSheet("QPushButton{background:#234b35;color:#dfffe9;border:1px solid #35734e;padding:6px 12px;border-radius:5px;font-weight:bold} QPushButton:hover{background:#2d6245}"); self.btn_hardware.clicked.connect(self._open_hardware_advisor); self.top_layout.addWidget(self.btn_hardware)
-        self.language_combo=QComboBox(); self.language_combo.setMinimumWidth(115); self.language_combo.addItem("العربية",LANGUAGE_AR); self.language_combo.addItem("English",LANGUAGE_EN); self.language_combo.currentIndexChanged.connect(self._language_changed); self.top_layout.addWidget(self.language_combo)
+        self.language_combo=QComboBox(); self.language_combo.setMinimumWidth(125); self.language_combo.addItem("العربية",LANGUAGE_AR); self.language_combo.addItem("English",LANGUAGE_EN); self.language_combo.currentIndexChanged.connect(self._language_changed); self.top_layout.addWidget(self.language_combo)
         self.lbl_time=QLabel(); self.lbl_time.setLayoutDirection(Qt.LeftToRight); self.lbl_time.setMinimumWidth(145); self.lbl_time.setStyleSheet("color:#888;font-size:11px"); self.top_layout.addWidget(self.lbl_time)
         content_layout.addWidget(self.top_bar)
         self.stack=QStackedWidget(); self.stack.setStyleSheet("QStackedWidget{background:#1a1a2e}")
