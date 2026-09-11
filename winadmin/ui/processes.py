@@ -115,11 +115,12 @@ class ProcessManagerWidget(QWidget):
 
     def start_updates(self):
         """ابدأ جلب العمليات بعد أن تصبح الصفحة هي الصفحة المرئية."""
-        if self._updates_started:
-            return
+        first_start = not self._updates_started
         self._updates_started = True
-        self.timer.start(5000)
-        QTimer.singleShot(0, self._update_processes)
+        if not self.timer.isActive():
+            self.timer.start(5000)
+        if first_start:
+            QTimer.singleShot(0, self._update_processes)
 
     def _update_processes(self):
         """طلب تحديث العمليات دون حجز خيط الواجهة."""
