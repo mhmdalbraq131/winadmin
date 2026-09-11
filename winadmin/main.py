@@ -188,13 +188,39 @@ class MainWindow(QMainWindow):
                 if timer is not None and not timer.isActive(): timer.start()
             except RuntimeError: pass
     def _switch_page(self,index):
-        page=self._ensure_page(index)
-        if page is None:return
+        """تبديل الصفحة بأمان: أوقف التحديثات أولاً ثم أنشئ الصفحة المطلوبة.
+        هذا يمنع تجمد/سواد الواجهة عندما تكون الصفحة الجديدة ثقيلة عند الإنشاء.
+        """
+        if not (0 <= index < len(self.page_factories)):
+            return
+
+        current_page = None
+        try:
+            current_page = self.stack.currentWidget()
+        except RuntimeError:
+            return
+
+        # مهم: لا ننشئ الصفحة الجديدة قبل إيقاف مؤقتات الصفحة الحالية.
         for other in self.pages:
-            if other is not None and other is not page:self._stop_page_timers(other)
-        try:self.stack.setCurrentWidget(page)
-        except RuntimeError:return
-        self._resume_page_timers(page); self.lbl_top_title.setText(tr(self.PAGE_TITLES[index],self._language)); self.sidebar.set_selected(index)
+            if other is not None:
+                self._stop_page_timers(other)
+
+        page = self._ensure_page(index)
+        if page is None:
+            if current_page is not None:
+                self._resume_page_timers(current_page)
+            return
+
+        try:
+            self.stack.setCurrentWidget(page)
+        except RuntimeError:
+            if current_page is not None:
+                self._resume_page_timers(current_page)
+            return
+
+        self._resume_page_timers(page)
+        self.lbl_top_title.setText(tr(self.PAGE_TITLES[index],self._language))
+        self.sidebar.set_selected(index)
     def _open_hardware_advisor(self):
         try: HardwareAdvisorDialog(self).exec_()
         except Exception as exc: logger.exception("Failed to open hardware advisor"); QMessageBox.critical(self,tr("خطأ",self._language),f"{tr('تعذر فتح فحص الجهاز',self._language)}.\n\n{exc}")
