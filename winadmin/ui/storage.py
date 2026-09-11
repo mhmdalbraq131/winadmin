@@ -14,7 +14,7 @@ from core.system_info import SystemInfo
 
 
 class StorageScannerThread(QThread):
-    """خيط مستقل وآمن لمسح المجلدات الكبيرة دون تجميد واجهة Qt."""
+    """مسح مجلدات المستوى الأول في الخلفية مع إمكانية الإلغاء."""
     finished = pyqtSignal(list)
     failed = pyqtSignal(str)
     progress = pyqtSignal(str)
@@ -26,42 +26,42 @@ class StorageScannerThread(QThread):
 
     def run(self):
         try:
-            self.progress.emit(f"جاري المسح: {self.path}")
             threshold = self.min_size_mb * 1024 * 1024
             results = []
-            stack = []
-            try:
-                with os.scandir(self.path) as it:
-                    for entry in it:
-                        if self.isInterruptionRequested():
-                            return
-                        if entry.is_dir(follow_symlinks=False):
-                            stack.append(entry.path)
-            except (OSError, PermissionError):
-                pass
-            processed = 0
-            while stack and not self.isInterruptionRequested():
-                root_path = stack.pop()
+            entries = []
+            with os.scandir(self.path) as it:
+                entries = [e for e in it if e.is_dir(follow_symlinks=False)]
+
+            for index, entry in enumerate(entries, 1):
+                if self.isInterruptionRequested():
+                    return
                 total = 0
                 try:
-                    with os.scandir(root_path) as it:
-                        for entry in it:
+                    for root, dirs, files in os.walk(entry.path, topdown=True):
+                        if self.isInterruptionRequested():
+                            return
+                        dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(root, d))]
+                        for name in files:
                             if self.isInterruptionRequested():
                                 return
                             try:
-                                if entry.is_file(follow_symlinks=False):
-                                    total += entry.stat(follow_symlinks=False).st_size
-                                elif entry.is_dir(follow_symlinks=False):
-                                    stack.append(entry.path)
+                                total += os.path.getsize(os.path.join(root, name))
                             except (OSError, PermissionError):
                                 continue
+                        # لا نحتاج حساب مجلدات ضخمة جدًا بدقة كاملة؛ هذا يمنع فحص القرص لساعات.
+                        if total >= threshold * 10:
+                            break
                 except (OSError, PermissionError):
                     continue
-                processed += 1
+
                 if total >= threshold:
-                    results.append({"path": root_path, "size_mb": round(total/(1024*1024),1), "size_gb": round(total/(1024*1024*1024),2)})
-                if processed % 100 == 0:
-                    self.progress.emit(f"جاري المسح... تم فحص {processed} مجلد")
+                    results.append({
+                        "path": entry.path,
+                        "size_mb": round(total / (1024 * 1024), 1),
+                        "size_gb": round(total / (1024 * 1024 * 1024), 2),
+                    })
+                self.progress.emit(f"جاري المسح... {index}/{len(entries)}")
+
             if not self.isInterruptionRequested():
                 self.finished.emit(sorted(results, key=lambda x: x["size_mb"], reverse=True))
         except Exception as exc:
