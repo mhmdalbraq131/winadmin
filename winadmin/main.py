@@ -182,11 +182,23 @@ class MainWindow(QMainWindow):
             except RuntimeError: pass
     @staticmethod
     def _resume_page_timers(page):
+        # الصفحات الثقيلة تبدأ جمع البيانات فقط بعد أن تصبح مرئية.
+        try:
+            starter = getattr(page, 'start_updates', None)
+            if callable(starter):
+                starter()
+                return
+        except RuntimeError:
+            return
         for name in ('timer','timer_slow'):
             try:
                 timer=getattr(page,name,None)
                 if timer is not None and not timer.isActive(): timer.start()
             except RuntimeError: pass
+    @staticmethod
+    def _activate_page(page):
+        if page is not None:
+            MainWindow._resume_page_timers(page)
     def _switch_page(self,index):
         """تبديل الصفحة بأمان: أوقف التحديثات أولاً ثم أنشئ الصفحة المطلوبة.
         هذا يمنع تجمد/سواد الواجهة عندما تكون الصفحة الجديدة ثقيلة عند الإنشاء.
