@@ -219,7 +219,7 @@ class StorageManagerWidget(QWidget):
 
     def _scan_large_dirs(self):
         """المسح عن مجلدات كبيرة."""
-        scan_path = "C:\\" if SystemInfo.IS_WINDOWS else "/"
+        scan_path = "C:\\" if os.name == "nt" else "/"
         self.lbl_status.setText("جاري المسح... قد يستغرق بضع دقائق")
         self.lbl_status.setStyleSheet("color: #ff9800; font-size: 12px;")
         self.btn_scan.setEnabled(False)
