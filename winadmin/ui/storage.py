@@ -13,6 +13,18 @@ import os
 from core.system_info import SystemInfo
 
 
+class DiskInfoThread(QThread):
+    """قراءة معلومات الأقراص خارج خيط الواجهة."""
+    finished = pyqtSignal(list)
+    failed = pyqtSignal(str)
+
+    def run(self):
+        try:
+            self.finished.emit(SystemInfo.get_disk_info())
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
 class StorageScannerThread(QThread):
     """مسح مجلدات المستوى الأول في الخلفية مع إمكانية الإلغاء."""
     finished = pyqtSignal(list)
@@ -86,6 +98,8 @@ class StorageManagerWidget(QWidget):
         super().__init__(parent)
         self._scanner = None
         self._app_scanner = None
+        self._disk_worker = None
+        self._updates_started = False
         self._setup_ui()
 
     def _setup_ui(self):
@@ -98,30 +112,13 @@ class StorageManagerWidget(QWidget):
         title.setStyleSheet("font-size: 20px; font-weight: bold; color: #e0e0e0;")
         layout.addWidget(title)
 
-        # ─ معلومات الأقراص ─
-        disks = SystemInfo.get_disk_info()
-        for d in disks:
-            disk_group = QGroupBox(f"{d.get('device', '')} — {d.get('mountpoint', '')}")
-            disk_group.setStyleSheet("QGroupBox { color: #e0e0e0; border: 1px solid #2a2a3e; border-radius: 6px; margin-top: 10px; padding-top: 15px; }")
-            disk_layout = QVBoxLayout(disk_group)
-
-            bar = QProgressBar()
-            bar.setMaximum(100)
-            bar.setValue(int(d.get("percent", 0)))
-            pct = d.get("percent", 0)
-            color = "#f44336" if pct >= 90 else "#ff9800" if pct >= 75 else "#4CAF50"
-            bar.setStyleSheet(f"""
-                QProgressBar {{ background: #1e1e32; border: none; border-radius: 4px; text-align: center; color: white; }}
-                QProgressBar::chunk {{ background: {color}; border-radius: 3px; }}
-            """)
-            bar.setFormat(f"{pct:.1f}% — {SystemInfo.bytes_to_human(d.get('used', 0))} / {SystemInfo.bytes_to_human(d.get('total', 0))}")
-            disk_layout.addWidget(bar)
-
-            info_lbl = QLabel(f"المتاح: {SystemInfo.bytes_to_human(d.get('free', 0))} | النوع: {d.get('fstype', '—')}")
-            info_lbl.setStyleSheet("color: #888; font-size: 11px;")
-            disk_layout.addWidget(info_lbl)
-
-            layout.addWidget(disk_group)
+        # معلومات الأقراص: تُحمّل بعد ظهور الصفحة حتى لا يتباطأ الانتقال.
+        self.disks_layout = QVBoxLayout()
+        self.disks_layout.setSpacing(8)
+        loading = QLabel("جاري قراءة معلومات الأقراص...")
+        loading.setStyleSheet("color:#aaa; padding:8px;")
+        self.disks_layout.addWidget(loading)
+        layout.addLayout(self.disks_layout)
 
         # ─ أدوات ─
         tools_layout = QHBoxLayout()
@@ -170,6 +167,55 @@ class StorageManagerWidget(QWidget):
         self.lbl_recommendations.setWordWrap(True)
         rec_layout.addWidget(self.lbl_recommendations)
         layout.addWidget(rec_group)
+
+    def start_updates(self):
+        """ابدأ جمع بيانات التخزين بعد ظهور الصفحة."""
+        if self._updates_started:
+            return
+        self._updates_started = True
+        self._load_disk_info()
+
+    def _load_disk_info(self):
+        if self._disk_worker is not None and self._disk_worker.isRunning():
+            return
+        self._disk_worker = DiskInfoThread()
+        self._disk_worker.finished.connect(self._on_disk_info)
+        self._disk_worker.failed.connect(self._on_disk_failed)
+        self._disk_worker.finished.connect(lambda *_: self._clear_disk_worker())
+        self._disk_worker.failed.connect(lambda *_: self._clear_disk_worker())
+        self._disk_worker.start()
+
+    def _clear_disk_worker(self):
+        worker = self._disk_worker
+        self._disk_worker = None
+        if worker is not None:
+            worker.deleteLater()
+
+    def _on_disk_failed(self, message):
+        self.disks_layout.itemAt(0).widget().setText("تعذر قراءة معلومات الأقراص.")
+
+    def _on_disk_info(self, disks):
+        while self.disks_layout.count():
+            item = self.disks_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        for d in disks:
+            disk_group = QGroupBox(f"{d.get('device', '')} — {d.get('mountpoint', '')}")
+            disk_group.setStyleSheet("QGroupBox { color: #e0e0e0; border: 1px solid #2a2a3e; border-radius: 6px; margin-top: 10px; padding-top: 15px; }")
+            disk_layout = QVBoxLayout(disk_group)
+            bar = QProgressBar()
+            bar.setMaximum(100)
+            pct = d.get("percent", 0)
+            bar.setValue(int(pct))
+            color = "#f44336" if pct >= 90 else "#ff9800" if pct >= 75 else "#4CAF50"
+            bar.setStyleSheet(f"QProgressBar {{ background:#1e1e32; border:none; border-radius:4px; text-align:center; color:white; }} QProgressBar::chunk {{ background:{color}; border-radius:3px; }}")
+            bar.setFormat(f"{pct:.1f}% — {SystemInfo.bytes_to_human(d.get('used',0))} / {SystemInfo.bytes_to_human(d.get('total',0))}")
+            disk_layout.addWidget(bar)
+            info_lbl = QLabel(f"المتاح: {SystemInfo.bytes_to_human(d.get('free',0))} | النوع: {d.get('fstype','—')}")
+            info_lbl.setStyleSheet("color:#888; font-size:11px;")
+            disk_layout.addWidget(info_lbl)
+            self.disks_layout.addWidget(disk_group)
+        self.disks_layout.addStretch()
 
     def _scan_large_dirs(self):
         """المسح عن مجلدات كبيرة."""
@@ -259,7 +305,7 @@ class StorageManagerWidget(QWidget):
             self.lbl_recommendations.setStyleSheet("color: #80ffcc; font-size: 12px;")
 
     def stop(self):
-        for attr in ("_scanner", "_app_scanner"):
+        for attr in ("_scanner", "_app_scanner", "_disk_worker"):
             worker = getattr(self, attr, None)
             if worker is not None and worker.isRunning():
                 try:
