@@ -9,12 +9,14 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QLineEdit, QFileDialog, QGroupBox)
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
+import os
 from core.system_info import SystemInfo
 
 
 class StorageScannerThread(QThread):
-    """خيط خلفي لمسح المجلدات الكبيرة."""
+    """خيط مستقل وآمن لمسح المجلدات الكبيرة دون تجميد واجهة Qt."""
     finished = pyqtSignal(list)
+    failed = pyqtSignal(str)
     progress = pyqtSignal(str)
 
     def __init__(self, path: str, min_size_mb: int = 500):
@@ -23,9 +25,47 @@ class StorageScannerThread(QThread):
         self.min_size_mb = min_size_mb
 
     def run(self):
-        self.progress.emit(f"جاري المسح: {self.path}")
-        result = SystemInfo.find_large_directories(self.path, self.min_size_mb)
-        self.finished.emit(result)
+        try:
+            self.progress.emit(f"جاري المسح: {self.path}")
+            threshold = self.min_size_mb * 1024 * 1024
+            results = []
+            stack = []
+            try:
+                with os.scandir(self.path) as it:
+                    for entry in it:
+                        if self.isInterruptionRequested():
+                            return
+                        if entry.is_dir(follow_symlinks=False):
+                            stack.append(entry.path)
+            except (OSError, PermissionError):
+                pass
+            processed = 0
+            while stack and not self.isInterruptionRequested():
+                root_path = stack.pop()
+                total = 0
+                try:
+                    with os.scandir(root_path) as it:
+                        for entry in it:
+                            if self.isInterruptionRequested():
+                                return
+                            try:
+                                if entry.is_file(follow_symlinks=False):
+                                    total += entry.stat(follow_symlinks=False).st_size
+                                elif entry.is_dir(follow_symlinks=False):
+                                    stack.append(entry.path)
+                            except (OSError, PermissionError):
+                                continue
+                except (OSError, PermissionError):
+                    continue
+                processed += 1
+                if total >= threshold:
+                    results.append({"path": root_path, "size_mb": round(total/(1024*1024),1), "size_gb": round(total/(1024*1024*1024),2)})
+                if processed % 100 == 0:
+                    self.progress.emit(f"جاري المسح... تم فحص {processed} مجلد")
+            if not self.isInterruptionRequested():
+                self.finished.emit(sorted(results, key=lambda x: x["size_mb"], reverse=True))
+        except Exception as exc:
+            self.failed.emit(str(exc))
 
 
 class AppSizeThread(QThread):
@@ -44,6 +84,8 @@ class StorageManagerWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._scanner = None
+        self._app_scanner = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -138,8 +180,15 @@ class StorageManagerWidget(QWidget):
 
         self._scanner = StorageScannerThread(scan_path)
         self._scanner.finished.connect(self._on_scan_done)
+        self._scanner.failed.connect(self._on_scan_failed)
         self._scanner.progress.connect(self.lbl_status.setText)
         self._scanner.start()
+
+    def _on_scan_failed(self, message):
+        self.btn_scan.setEnabled(True)
+        self.lbl_status.setText("تعذر فحص المجلدات")
+        self.lbl_status.setStyleSheet("color: #f44336; font-size: 12px;")
+        self._scanner = None
 
     def _on_scan_done(self, result):
         self.btn_scan.setEnabled(True)
@@ -152,6 +201,7 @@ class StorageManagerWidget(QWidget):
             self.results_table.setItem(i, 1, QTableWidgetItem(f"{d.get('size_gb', 0):.2f} GB"))
             self.results_table.setItem(i, 2, QTableWidgetItem(f"{d.get('size_mb', 0):.1f} MB"))
 
+        self._scanner = None
         if result:
             recs = "\n".join(f"• المجلد {d['path']} يحتل {d['size_gb']:.1f} GB — فكر في نقله أو حذف محتوياته غير الضرورية"
                        for d in result[:5])
@@ -209,4 +259,13 @@ class StorageManagerWidget(QWidget):
             self.lbl_recommendations.setStyleSheet("color: #80ffcc; font-size: 12px;")
 
     def stop(self):
-        pass
+        for attr in ("_scanner", "_app_scanner"):
+            worker = getattr(self, attr, None)
+            if worker is not None and worker.isRunning():
+                try:
+                    worker.requestInterruption()
+                    worker.quit()
+                    worker.wait(1000)
+                except Exception:
+                    pass
+            setattr(self, attr, None)
