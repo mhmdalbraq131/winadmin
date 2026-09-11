@@ -233,13 +233,15 @@ class DashboardWidget(QWidget):
 
     def start_updates(self):
         """يُستدعى بعد عرض الصفحة فعليًا، فيبدأ تحميل البيانات دون تأخير التنقل."""
-        if self._updates_started:
-            return
+        first_start = not self._updates_started
         self._updates_started = True
-        self.timer.start(2000)
-        self.timer_slow.start(30000)
-        QTimer.singleShot(0, self._update_static_info)
-        QTimer.singleShot(0, self._update_dynamic_info)
+        if not self.timer.isActive():
+            self.timer.start(2000)
+        if not self.timer_slow.isActive():
+            self.timer_slow.start(30000)
+        if first_start:
+            QTimer.singleShot(0, self._update_static_info)
+            QTimer.singleShot(0, self._update_dynamic_info)
 
     def _update_static_info(self):
         try:
