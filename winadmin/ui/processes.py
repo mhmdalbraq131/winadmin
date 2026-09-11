@@ -33,8 +33,9 @@ class ProcessManagerWidget(QWidget):
         self._sort_order = Qt.DescendingOrder
         self._worker = None
         self._refresh_pending = False
+        self._updates_started = False
         self._setup_ui()
-        self._start_timer()
+        self._create_timer()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -107,10 +108,16 @@ class ProcessManagerWidget(QWidget):
         self.proc_table.customContextMenuRequested.connect(self._show_context_menu)
         layout.addWidget(self.proc_table)
 
-    def _start_timer(self):
+    def _create_timer(self):
         self.timer = QTimer(self)
         self.timer.setTimerType(Qt.CoarseTimer)
         self.timer.timeout.connect(self._update_processes)
+
+    def start_updates(self):
+        """ابدأ جلب العمليات بعد أن تصبح الصفحة هي الصفحة المرئية."""
+        if self._updates_started:
+            return
+        self._updates_started = True
         self.timer.start(5000)
         QTimer.singleShot(0, self._update_processes)
 
