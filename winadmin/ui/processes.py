@@ -7,9 +7,21 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QLineEdit, QPushButton, QTableWidget,
                               QTableWidgetItem, QHeaderView, QComboBox,
                               QMessageBox, QMenu)
-from PyQt5.QtCore import Qt, QTimer, QSortFilterProxyModel
+from PyQt5.QtCore import Qt, QTimer, QSortFilterProxyModel, QThread, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 from core.system_info import SystemInfo
+
+
+class ProcessLoadWorker(QThread):
+    """تحميل العمليات خارج خيط الواجهة."""
+    finished = pyqtSignal(list)
+    failed = pyqtSignal(str)
+
+    def run(self):
+        try:
+            self.finished.emit(SystemInfo.get_processes())
+        except Exception as exc:
+            self.failed.emit(str(exc))
 
 
 class ProcessManagerWidget(QWidget):
@@ -19,6 +31,8 @@ class ProcessManagerWidget(QWidget):
         super().__init__(parent)
         self._sort_column = 4  # ترتيب حسب CPU افتراضياً
         self._sort_order = Qt.DescendingOrder
+        self._worker = None
+        self._refresh_pending = False
         self._setup_ui()
         self._start_timer()
 
@@ -94,15 +108,28 @@ class ProcessManagerWidget(QWidget):
         layout.addWidget(self.proc_table)
 
     def _start_timer(self):
-        self._update_processes()
         self.timer = QTimer(self)
+        self.timer.setTimerType(Qt.CoarseTimer)
         self.timer.timeout.connect(self._update_processes)
-        self.timer.start(3000)
+        self.timer.start(5000)
+        QTimer.singleShot(0, self._update_processes)
 
     def _update_processes(self):
-        """تحديث قائمة العمليات."""
+        """طلب تحديث العمليات دون حجز خيط الواجهة."""
+        if self._worker is not None and self._worker.isRunning():
+            self._refresh_pending = True
+            return
+        self._refresh_pending = False
+        self.btn_refresh.setEnabled(False)
+        self._worker = ProcessLoadWorker()
+        self._worker.finished.connect(self._on_processes_loaded)
+        self._worker.failed.connect(self._on_processes_failed)
+        self._worker.finished.connect(self._cleanup_worker)
+        self._worker.failed.connect(self._cleanup_worker)
+        self._worker.start()
+
+    def _on_processes_loaded(self, processes):
         try:
-            processes = SystemInfo.get_processes()
             search = self.search_input.text().lower()
 
             if search:
@@ -142,8 +169,22 @@ class ProcessManagerWidget(QWidget):
                 self.proc_table.setItem(i, 6, QTableWidgetItem(p.get("status", "")))
 
             self.lbl_count.setText(f"{len(processes)} عملية")
-        except Exception as e:
-            self.lbl_count.setText("خطأ في التحديث")
+        except Exception:
+            self.lbl_count.setText("خطأ في عرض العمليات")
+        finally:
+            self.btn_refresh.setEnabled(True)
+
+    def _on_processes_failed(self, message):
+        self.btn_refresh.setEnabled(True)
+        self.lbl_count.setText("تعذر تحديث العمليات")
+
+    def _cleanup_worker(self, *_):
+        worker = self._worker
+        self._worker = None
+        if worker is not None:
+            worker.deleteLater()
+        if self._refresh_pending and self.timer.isActive():
+            QTimer.singleShot(0, self._update_processes)
 
     def _filter_processes(self, text: str):
         self._update_processes()
@@ -192,4 +233,11 @@ class ProcessManagerWidget(QWidget):
                                         f"PID: {pid}\nالاسم: {name}")
 
     def stop(self):
-        self.timer.stop()
+        try:
+            self.timer.stop()
+            if self._worker is not None and self._worker.isRunning():
+                self._worker.requestInterruption()
+                self._worker.quit()
+                self._worker.wait(500)
+        except Exception:
+            pass
