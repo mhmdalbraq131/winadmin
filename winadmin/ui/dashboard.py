@@ -112,8 +112,9 @@ class DashboardWidget(QWidget):
         self.db = db_manager
         self.alert_manager = alert_manager
         self.setLayoutDirection(Qt.RightToLeft)
+        self._updates_started = False
         self._setup_ui()
-        self._start_timers()
+        self._create_timers()
 
     def _setup_ui(self):
         outer = QVBoxLayout(self)
@@ -221,15 +222,24 @@ class DashboardWidget(QWidget):
             if "No alerts" in self.alerts_list_label.text():
                 self.alerts_list_label.setText("لا توجد تنبيهات ✓")
 
-    def _start_timers(self):
-        self._update_static_info()
-        self._update_dynamic_info()
+    def _create_timers(self):
+        """إنشاء المؤقتات فقط؛ لا ننفذ فحصًا أثناء إنشاء الصفحة."""
         self.timer = QTimer(self)
+        self.timer.setTimerType(Qt.CoarseTimer)
         self.timer.timeout.connect(self._update_dynamic_info)
-        self.timer.start(2000)
         self.timer_slow = QTimer(self)
+        self.timer_slow.setTimerType(Qt.CoarseTimer)
         self.timer_slow.timeout.connect(self._update_static_info)
+
+    def start_updates(self):
+        """يُستدعى بعد عرض الصفحة فعليًا، فيبدأ تحميل البيانات دون تأخير التنقل."""
+        if self._updates_started:
+            return
+        self._updates_started = True
+        self.timer.start(2000)
         self.timer_slow.start(30000)
+        QTimer.singleShot(0, self._update_static_info)
+        QTimer.singleShot(0, self._update_dynamic_info)
 
     def _update_static_info(self):
         try:
